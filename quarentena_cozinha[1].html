@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🍔 Cozinha | Quarentena BBQ</title>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<!-- SheetJS para exportar Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style>
+:root {
+  --laranja: #FF6B00;
+  --laranja-dark: #CC5200;
+  --preto: #111111;
+  --card: #1C1C1C;
+  --card2: #242424;
+  --borda: #2E2E2E;
+  --cinza: #3A3A3A;
+  --texto: #F0F0F0;
+  --muted: #777;
+  --verde: #00C853;
+  --amarelo: #FFB300;
+  --vermelho: #D32F2F;
+  --azul: #1E88E5;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--preto);color:var(--texto);font-family:'Segoe UI',system-ui,sans-serif;overscroll-behavior:none}
+body{padding-bottom:env(safe-area-inset-bottom,0px)}
+
+/* ── TELA DE LOGIN ── */
+#loginScreen{
+  position:fixed;inset:0;background:var(--preto);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:1000;padding:24px;
+}
+.login-logo{font-size:48px;margin-bottom:4px}
+.login-brand{font-size:22px;font-weight:900;color:var(--laranja);letter-spacing:3px;text-transform:uppercase}
+.login-sub{font-size:11px;color:var(--muted);letter-spacing:2px;margin-bottom:36px}
+.login-card{width:100%;max-width:360px;background:var(--card);border:1px solid var(--borda);border-radius:16px;padding:24px}
+.login-title{font-size:14px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:20px}
+.lf{margin-bottom:14px}
+.lf label{font-size:11px;color:var(--muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:1px}
+.lf input{
+  width:100%;background:var(--card2);border:1px solid var(--borda);border-radius:8px;
+  color:var(--texto);font-size:15px;padding:11px 14px;outline:none;transition:border-color .2s
+}
+.lf input:focus{border-color:var(--laranja)}
+.btn-login{
+  width:100%;background:var(--laranja);color:#fff;border:none;border-radius:10px;
+  padding:14px;font-size:14px;font-weight:800;cursor:pointer;letter-spacing:1px;
+  text-transform:uppercase;margin-top:6px;transition:background .2s
+}
+.btn-login:active{background:var(--laranja-dark)}
+.login-error{font-size:12px;color:#ff6b6b;text-align:center;margin-top:10px;min-height:18px}
+.login-admin-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:14px}
+
+/* ── SETUP FIREBASE ── */
+#setupScreen{
+  position:fixed;inset:0;background:var(--preto);display:none;flex-direction:column;
+  align-items:center;justify-content:center;z-index:999;padding:24px;overflow-y:auto
+}
+.setup-card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--laranja);border-radius:16px;padding:24px}
+.setup-title{font-size:16px;font-weight:800;color:var(--laranja);margin-bottom:6px}
+.setup-desc{font-size:12px;color:var(--muted);margin-bottom:20px;line-height:1.6}
+.setup-step{
+  background:var(--card2);border:1px solid var(--borda);border-radius:10px;
+  padding:12px;margin-bottom:10px
+}
+.setup-step-num{font-size:10px;font-weight:700;color:var(--laranja);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.setup-step-text{font-size:12px;color:#aaa;line-height:1.5}
+.setup-step a{color:var(--laranja);text-decoration:none}
+.sf{margin-bottom:12px}
+.sf label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px}
+.sf input{
+  width:100%;background:var(--preto);border:1px solid var(--borda);border-radius:8px;
+  color:var(--texto);font-size:13px;padding:9px 12px;outline:none;font-family:monospace
+}
+.sf input:focus{border-color:var(--laranja)}
+
+/* ── APP ── */
+#app{display:none;flex-direction:column;height:100vh}
+
+.header{
+  background:var(--card);border-bottom:2px solid var(--laranja);
+  padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0
+}
+.header-left{display:flex;flex-direction:column}
+.header-brand{font-size:13px;font-weight:900;color:var(--laranja);letter-spacing:2px;text-transform:uppercase}
+.header-sub{font-size:10px;color:var(--muted);letter-spacing:1px}
+.header-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.header-user{
+  font-size:11px;font-weight:700;color:var(--texto);
+  background:var(--cinza);padding:3px 10px;border-radius:20px
+}
+.header-date{font-size:10px;color:var(--muted)}
+.online-dot{
+  display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--verde);margin-right:4px;animation:pulse 2s infinite
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.tabs{
+  display:flex;background:var(--card);border-bottom:1px solid var(--borda);
+  overflow-x:auto;scrollbar-width:none;flex-shrink:0
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex:1;min-width:72px;padding:9px 4px;text-align:center;
+  font-size:10px;font-weight:700;color:var(--muted);
+  border-bottom:2px solid transparent;cursor:pointer;
+  transition:all .2s;white-space:nowrap;letter-spacing:.5px;text-transform:uppercase
+}
+.tab.active{color:var(--laranja);border-bottom-color:var(--laranja)}
+.tab-ic{font-size:16px;display:block;margin-bottom:1px}
+
+.main{flex:1;overflow-y:auto;padding:12px}
+
+.section{display:none}
+.section.active{display:block}
+
+/* ── COMPONENTES ── */
+.search-wrap{
+  background:var(--card);border:1px solid var(--borda);border-radius:8px;
+  display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:10px
+}
+.search-wrap input{background:none;border:none;outline:none;color:var(--texto);font-size:14px;flex:1}
+.search-wrap input::placeholder{color:#444}
+
+.filtros{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.filtros::-webkit-scrollbar{display:none}
+.fbtn{
+  padding:5px 12px;border-radius:20px;border:1px solid var(--borda);
+  background:none;color:var(--muted);font-size:10px;font-weight:700;
+  cursor:pointer;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0
+}
+.fbtn.active{background:var(--laranja);border-color:var(--laranja);color:#fff}
+
+.cat-label{
+  font-size:10px;font-weight:700;color:var(--laranja);
+  letter-spacing:2px;text-transform:uppercase;
+  padding:10px 2px 5px;border-bottom:1px solid #1e1e1e;margin-bottom:6px
+}
+
+.item-card{
+  background:var(--card);border:1px solid var(--borda);border-left:3px solid #333;
+  border-radius:10px;padding:10px 12px;margin-bottom:8px;transition:border-color .2s
+}
+.item-card.ok{border-left-color:var(--verde)}
+.item-card.baixo{border-left-color:var(--amarelo)}
+.item-card.ruptura{border-left-color:var(--vermelho);background:#1f1010}
+.item-card.pendente{border-left-color:#333}
+
+.item-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.item-nome{font-size:13px;font-weight:700}
+.item-editor{font-size:10px;color:var(--muted);margin-top:1px}
+
+.badge{font-size:9px;font-weight:800;padding:2px 8px;border-radius:20px;letter-spacing:.5px;text-transform:uppercase}
+.badge-ok{background:rgba(0,200,83,.12);color:var(--verde)}
+.badge-baixo{background:rgba(255,179,0,.12);color:var(--amarelo)}
+.badge-ruptura{background:rgba(211,47,47,.18);color:#ff5252}
+.badge-pendente{background:rgba(100,100,100,.15);color:#666}
+
+.item-stats{display:flex;gap:12px;margin-bottom:7px}
+.stat-blk{flex:1}
+.stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.stat-val{font-size:12px;font-weight:700}
+.val-min{color:var(--amarelo)}
+.val-max{color:#555}
+.val-atual{color:var(--laranja)}
+
+.prog-wrap{height:5px;background:var(--borda);border-radius:3px;overflow:hidden;margin-bottom:8px}
+.prog{height:100%;border-radius:3px;transition:width .4s}
+
+.count-row{display:flex;align-items:center;gap:8px}
+.cbtn{
+  width:38px;height:38px;border-radius:8px;border:none;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;font-weight:700;cursor:pointer;flex-shrink:0;transition:transform .1s
+}
+.cbtn:active{transform:scale(.88)}
+.cbtn-minus{background:var(--cinza);color:#999}
+.cbtn-plus{background:var(--laranja);color:#fff}
+.cinput{
+  flex:1;background:var(--cinza);border:1px solid var(--borda);border-radius:8px;
+  color:var(--texto);font-size:18px;font-weight:800;text-align:center;
+  padding:7px 4px;outline:none;-moz-appearance:textfield
+}
+.cinput:focus{border-color:var(--laranja)}
+.cinput::-webkit-outer-spin-button,.cinput::-webkit-inner-spin-button{-webkit-appearance:none}
+.un-lbl{font-size:11px;color:var(--muted);min-width:30px;text-align:center}
+
+/* sync indicator */
+.sync-dot{
+  display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:var(--amarelo);margin-left:6px;vertical-align:middle;transition:background .3s
+}
+.sync-dot.saved{background:var(--verde)}
+
+/* ── COMPRAS ── */
+.resumo-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.rcard{
+  background:var(--card);border:1px solid var(--borda);border-radius:10px;
+  padding:12px;text-align:center
+}
+.rnum{font-size:26px;font-weight:900}
+.rlbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.num-r{color:var(--vermelho)}.num-a{color:var(--amarelo)}.num-g{color:var(--verde)}.num-o{color:var(--laranja)}
+
+.banner-ruptura{
+  background:rgba(211,47,47,.12);border:1px solid rgba(211,47,47,.35);
+  border-radius:10px;padding:11px;margin-bottom:12px;
+  display:none;align-items:center;gap:10px
+}
+.banner-ruptura span{font-size:11px;color:#ff5252}
+.banner-ruptura strong{font-size:13px;display:block;margin-bottom:2px}
+
+.compra-item{
+  background:var(--card);border:1px solid var(--borda);border-radius:10px;
+  padding:10px 12px;margin-bottom:7px;display:flex;align-items:center;gap:10px
+}
+.compra-item.urg{border-left:3px solid var(--vermelho)}
+.compra-item.atc{border-left:3px solid var(--amarelo)}
+.ci-icon{font-size:17px;width:26px;text-align:center;flex-shrink:0}
+.ci-body{flex:1;min-width:0}
+.ci-nome{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-det{font-size:10px;color:var(--muted);margin-top:2px}
+.ci-qtd{font-size:15px;font-weight:900;color:var(--laranja);text-align:right;flex-shrink:0}
+.ci-un{font-size:9px;color:var(--muted)}
+
+.sec-title{font-size:10px;font-weight:800;color:var(--laranja);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+
+.btn-p{
+  width:100%;background:var(--laranja);color:#fff;border:none;border-radius:10px;
+  padding:13px;font-size:13px;font-weight:800;cursor:pointer;
+  letter-spacing:.5px;text-transform:uppercase;margin-top:10px
+}
+.btn-p:active{background:var(--laranja-dark)}
+.btn-s{
+  width:100%;background:var(--card);color:var(--texto);border:1px solid var(--borda);
+  border-radius:10px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px
+}
+.btn-wpp{
+  width:100%;background:#25D366;color:#fff;border:none;border-radius:10px;
+  padding:12px;font-size:13px;font-weight:800;cursor:pointer;margin-top:8px;
+  display:flex;align-items:center;justify-content:center;gap:8px
+}
+.btn-wpp:active{background:#1da851}
+
+/* ── HISTÓRICO ── */
+.hist-card{
+  background:var(--card);border:1px solid var(--borda);border-radius:10px;
+  padding:12px;margin-bottom:8px
+}
+.hist-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.hist-data{font-size:13px;font-weight:700}
+.hist-meta{font-size:10px;color:var(--muted)}
+.hist-bar-wrap{height:4px;background:var(--borda);border-radius:2px;overflow:hidden}
+.hist-bar-fill{height:100%;background:var(--laranja);border-radius:2px}
+.hist-by{font-size:10px;color:var(--muted);margin-top:5px}
+
+.consumo-item{
+  background:var(--card);border:1px solid var(--borda);border-radius:10px;
+  padding:10px 12px;margin-bottom:7px;
+  display:flex;align-items:center;justify-content:space-between
+}
+.con-nome{font-size:13px;font-weight:700}
+.con-med{font-size:10px;color:var(--muted);margin-top:2px}
+.con-val{font-size:14px;font-weight:800;color:var(--laranja);text-align:right}
+.trend-up{color:var(--vermelho);font-size:10px}
+.trend-dn{color:var(--verde);font-size:10px}
+
+.export-row{display:flex;gap:8px;margin-top:12px}
+.btn-export{
+  flex:1;background:var(--card);border:1px solid var(--borda);border-radius:10px;
+  padding:11px;font-size:12px;font-weight:700;color:var(--texto);cursor:pointer;text-align:center
+}
+.btn-export:active{background:var(--cinza)}
+
+/* ── CONFIG / ADMIN ── */
+.config-card{
+  background:var(--card);border:1px solid var(--borda);border-radius:10px;
+  padding:12px;margin-bottom:8px
+}
+.config-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.config-nome{font-size:14px;font-weight:700}
+.config-cat{font-size:10px;color:var(--muted)}
+.cfg-fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.cfg-f label{font-size:9px;color:var(--muted);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:1px}
+.cfg-f input{
+  width:100%;background:var(--cinza);border:1px solid var(--borda);border-radius:6px;
+  color:var(--texto);font-size:13px;font-weight:700;text-align:center;padding:5px;outline:none;
+  -moz-appearance:textfield
+}
+.cfg-f input::-webkit-outer-spin-button,.cfg-f input::-webkit-inner-spin-button{-webkit-appearance:none}
+.btn-edit-sm{
+  background:none;border:1px solid var(--borda);color:#aaa;border-radius:6px;
+  padding:5px 10px;font-size:11px;cursor:pointer
+}
+
+.users-section{margin-top:20px}
+.user-card{
+  background:var(--card);border:1px solid var(--borda);border-radius:10px;
+  padding:12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between
+}
+.user-avatar{
+  width:36px;height:36px;border-radius:50%;background:var(--laranja);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:14px;color:#fff;flex-shrink:0;margin-right:10px
+}
+.user-info{flex:1}
+.user-nome{font-size:14px;font-weight:700}
+.user-role{font-size:10px;color:var(--muted)}
+.btn-del-user{
+  background:rgba(211,47,47,.12);border:1px solid rgba(211,47,47,.2);
+  color:#ff5252;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer
+}
+.add-item-btn{
+  width:100%;background:none;border:2px dashed var(--borda);border-radius:10px;
+  color:var(--muted);font-size:13px;font-weight:700;padding:14px;cursor:pointer;margin-top:4px
+}
+.add-item-btn:active{border-color:var(--laranja);color:var(--laranja)}
+
+.logout-btn{
+  width:100%;background:rgba(211,47,47,.1);border:1px solid rgba(211,47,47,.25);
+  color:#ff5252;border-radius:10px;padding:12px;font-size:13px;font-weight:700;
+  cursor:pointer;margin-top:20px
+}
+
+/* ── MODAL ── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.85);z-index:500;align-items:flex-end;justify-content:center
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--card);border-radius:16px 16px 0 0;
+  width:100%;max-height:90vh;overflow-y:auto;padding:16px;
+  padding-bottom:calc(32px + env(safe-area-inset-bottom,0px))
+}
+.modal-handle{width:36px;height:4px;background:#333;border-radius:2px;margin:0 auto 14px}
+.modal-title{font-size:15px;font-weight:800;color:var(--laranja);margin-bottom:16px}
+.mf{margin-bottom:12px}
+.mf label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px}
+.mf input,.mf select{
+  width:100%;background:var(--cinza);border:1px solid var(--borda);border-radius:8px;
+  color:var(--texto);font-size:14px;padding:10px 12px;outline:none
+}
+.mf input:focus{border-color:var(--laranja)}
+.mf select option{background:var(--cinza)}
+.mf-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-del-red{
+  width:100%;background:rgba(211,47,47,.1);border:1px solid rgba(211,47,47,.25);
+  color:#ff5252;border-radius:10px;padding:11px;font-size:13px;font-weight:700;
+  cursor:pointer;margin-top:8px;display:none
+}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;top:68px;left:50%;transform:translateX(-50%);
+  background:var(--cinza);color:var(--texto);padding:9px 20px;border-radius:20px;
+  font-size:12px;font-weight:700;border:1px solid var(--laranja);z-index:600;
+  opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap
+}
+.toast.show{opacity:1}
+
+/* ── LOADING ── */
+.loading-screen{
+  position:fixed;inset:0;background:var(--preto);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:900
+}
+.loading-spin{
+  width:36px;height:36px;border:3px solid var(--borda);border-top-color:var(--laranja);
+  border-radius:50%;animation:spin .8s linear infinite;margin-bottom:14px
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{font-size:12px;color:var(--muted);letter-spacing:1px}
+
+/* ── SYNC BANNER ── */
+.sync-banner{
+  display:none;background:rgba(30,136,229,.12);border:1px solid rgba(30,136,229,.3);
+  border-radius:8px;padding:8px 12px;margin-bottom:10px;
+  font-size:11px;color:#64b5f6;text-align:center
+}
+.sync-banner.show{display:block}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-screen" id="loadingScreen">
+  <div style="font-size:40px;margin-bottom:12px">🔥</div>
+  <div class="loading-spin"></div>
+  <div class="loading-txt">QUARENTENA BBQ</div>
+</div>
+
+<!-- SETUP FIREBASE (primeira vez) -->
+<div id="setupScreen">
+  <div class="setup-card">
+    <div class="setup-title">🔧 Configurar Firebase</div>
+    <div class="setup-desc">Configure uma vez só. Os dados ficarão salvos em nuvem para toda a equipe acessar em tempo real.</div>
+
+    <div class="setup-step">
+      <div class="setup-step-num">Passo 1</div>
+      <div class="setup-step-text">Acesse <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> → Criar projeto → nome "quarentena-bbq"</div>
+    </div>
+    <div class="setup-step">
+      <div class="setup-step-num">Passo 2</div>
+      <div class="setup-step-text">No projeto → Firestore Database → Criar banco (modo produção) → Regras: allow read, write: if true</div>
+    </div>
+    <div class="setup-step">
+      <div class="setup-step-num">Passo 3</div>
+      <div class="setup-step-text">Configurações do projeto ⚙️ → Seus apps → Web → Registrar app → copie os dados abaixo</div>
+    </div>
+
+    <div class="sf"><label>API Key</label><input id="cfgApiKey" placeholder="AIzaSy..."></div>
+    <div class="sf"><label>Auth Domain</label><input id="cfgAuthDomain" placeholder="quarentena-bbq.firebaseapp.com"></div>
+    <div class="sf"><label>Project ID</label><input id="cfgProjectId" placeholder="quarentena-bbq"></div>
+    <div class="sf"><label>App ID</label><input id="cfgAppId" placeholder="1:123456:web:abcdef"></div>
+
+    <button class="btn-login" onclick="salvarConfig()">✓ SALVAR E CONECTAR</button>
+    <div id="setupError" class="login-error"></div>
+
+    <div style="margin-top:16px;padding:12px;background:rgba(255,107,0,.08);border:1px solid rgba(255,107,0,.2);border-radius:8px">
+      <div style="font-size:10px;color:var(--laranja);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💡 MODO DEMO (sem Firebase)</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.5">Se quiser testar agora sem configurar Firebase, use o modo local — dados ficam só neste dispositivo.</div>
+      <button class="btn-s" style="margin-top:8px;font-size:12px;padding:9px" onclick="usarModoLocal()">Usar modo local (demo)</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginScreen" style="display:none">
+  <div class="login-logo">🔥</div>
+  <div class="login-brand">Quarentena BBQ</div>
+  <div class="login-sub">CONTROLE DE ESTOQUE</div>
+  <div class="login-card">
+    <div class="login-title">Entrar</div>
+    <div class="lf"><label>Nome de usuário</label><input type="text" id="loginNome" placeholder="Ex: João" autocomplete="username"></div>
+    <div class="lf"><label>Senha</label><input type="password" id="loginSenha" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
+    <button class="btn-login" onclick="fazerLogin()">ENTRAR</button>
+    <div class="login-error" id="loginError"></div>
+    <div class="login-admin-hint" id="loginAdminHint"></div>
+  </div>
+</div>
+
+<!-- APP PRINCIPAL -->
+<div id="app">
+  <div class="header">
+    <div class="header-left">
+      <div class="header-brand">🍔 Quarentena BBQ</div>
+      <div class="header-sub">COZINHA</div>
+    </div>
+    <div class="header-right">
+      <div class="header-user"><span class="online-dot"></span><span id="userTag">—</span></div>
+      <div class="header-date" id="headerDate"></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('contagem',this)"><span class="tab-ic">📦</span>Contagem</div>
+    <div class="tab" onclick="showTab('compras',this)"><span class="tab-ic">🛒</span>Compras</div>
+    <div class="tab" onclick="showTab('historico',this)"><span class="tab-ic">📊</span>Consumo</div>
+    <div class="tab" onclick="showTab('config',this)"><span class="tab-ic">⚙️</span>Config</div>
+  </div>
+
+  <div class="main">
+
+    <!-- CONTAGEM -->
+    <div class="section active" id="tab-contagem">
+      <div class="sync-banner" id="syncBanner">🔄 Sincronizando com a nuvem...</div>
+      <div class="search-wrap">
+        <span>🔍</span>
+        <input type="text" id="searchInput" placeholder="Buscar insumo..." oninput="renderLista()">
+      </div>
+      <div class="filtros">
+        <button class="fbtn active" onclick="setFiltro('todos',this)">Todos</button>
+        <button class="fbtn" onclick="setFiltro('ruptura',this)">🔴 Ruptura</button>
+        <button class="fbtn" onclick="setFiltro('baixo',this)">🟡 Baixo</button>
+        <button class="fbtn" onclick="setFiltro('ok',this)">🟢 OK</button>
+        <button class="fbtn" onclick="setFiltro('pendente',this)">⚪ Pendente</button>
+      </div>
+      <div id="listaItens"></div>
+      <button class="btn-p" onclick="finalizarContagem()">✓ FINALIZAR CONTAGEM DO DIA</button>
+    </div>
+
+    <!-- COMPRAS -->
+    <div class="section" id="tab-compras">
+      <div class="banner-ruptura" id="bannerRuptura">
+        <span style="font-size:22px">🚨</span>
+        <span><strong id="rupturaCount">0 rupturas</strong>Compra urgente necessária!</span>
+      </div>
+      <div class="resumo-grid">
+        <div class="rcard"><div class="rnum num-r" id="rUrgente">0</div><div class="rlbl">🚨 Urgente</div></div>
+        <div class="rcard"><div class="rnum num-a" id="rAtencao">0</div><div class="rlbl">⚠️ Atenção</div></div>
+        <div class="rcard"><div class="rnum num-g" id="rOk">0</div><div class="rlbl">✅ OK</div></div>
+        <div class="rcard"><div class="rnum num-o" id="rContados">0</div><div class="rlbl">📦 Contados</div></div>
+      </div>
+      <div class="sec-title">🛒 Lista de Compras</div>
+      <div id="listaCompras"></div>
+      <button class="btn-wpp" onclick="enviarWhatsApp()">📱 Enviar por WhatsApp</button>
+      <button class="btn-s" onclick="copiarLista()">📋 Copiar Lista</button>
+    </div>
+
+    <!-- HISTÓRICO/CONSUMO -->
+    <div class="section" id="tab-historico">
+      <div class="sec-title">📊 Consumo médio (últimos 7 dias)</div>
+      <div id="listaConsumo"></div>
+      <div style="margin-top:16px" class="sec-title">📅 Histórico de contagens</div>
+      <div id="listaHist"></div>
+      <div class="sec-title" style="margin-top:16px">📤 Exportar Dados</div>
+      <div class="export-row">
+        <button class="btn-export" onclick="exportarExcel()">📊 Excel</button>
+        <button class="btn-export" onclick="exportarCSV()">📄 CSV</button>
+      </div>
+    </div>
+
+    <!-- CONFIG / ADMIN -->
+    <div class="section" id="tab-config">
+      <div class="sec-title" id="configSectionTitle">⚙️ Insumos</div>
+      <div id="listaConfig"></div>
+      <button class="add-item-btn" onclick="abrirModalItem()">+ ADICIONAR INSUMO</button>
+
+      <div class="users-section" id="usersSection" style="display:none">
+        <div class="sec-title">👥 Usuários</div>
+        <div id="listaUsuarios"></div>
+        <button class="add-item-btn" onclick="abrirModalUsuario()">+ ADICIONAR USUÁRIO</button>
+      </div>
+
+      <button class="logout-btn" onclick="fazerLogout()">🚪 Sair da conta</button>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- MODAL ITEM -->
+<div class="modal-overlay" id="modalItem" onclick="fecharModal('modalItem',event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalItemTitulo">Novo Insumo</div>
+    <div class="mf"><label>Nome</label><input type="text" id="mNome" placeholder="Ex: Pão Brioche"></div>
+    <div class="mf"><label>Categoria</label>
+      <select id="mCat">
+        <option>🍔 Pães & Proteínas</option><option>🧀 Laticínios</option>
+        <option>🥬 Vegetais & Molhos</option><option>🍺 Bebidas</option>
+        <option>🧴 Embalagens</option><option>🔥 Carvão & Gás</option>
+        <option>🧂 Temperos</option><option>🥗 Acompanhamentos</option>
+      </select>
+    </div>
+    <div class="mf"><label>Unidade</label>
+      <select id="mUn">
+        <option>un</option><option>kg</option><option>g</option><option>L</option>
+        <option>ml</option><option>cx</option><option>pct</option><option>fardo</option>
+      </select>
+    </div>
+    <div class="mf-grid">
+      <div class="mf"><label>Mínimo</label><input type="number" id="mMin" min="0" placeholder="0"></div>
+      <div class="mf"><label>Máximo</label><input type="number" id="mMax" min="0" placeholder="0"></div>
+    </div>
+    <button class="btn-p" onclick="salvarItem()">SALVAR</button>
+    <button class="btn-del-red" id="btnDelItem" onclick="excluirItem()">🗑 Excluir Insumo</button>
+    <button class="btn-s" onclick="fecharModal('modalItem')">Cancelar</button>
+  </div>
+</div>
+
+<!-- MODAL USUÁRIO -->
+<div class="modal-overlay" id="modalUsuario" onclick="fecharModal('modalUsuario',event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalUserTitulo">Novo Usuário</div>
+    <div class="mf"><label>Nome</label><input type="text" id="uNome" placeholder="Ex: João"></div>
+    <div class="mf"><label>Senha</label><input type="password" id="uSenha" placeholder="Mín. 4 caracteres"></div>
+    <div class="mf"><label>Perfil</label>
+      <select id="uRole">
+        <option value="operador">Operador (só faz contagem)</option>
+        <option value="admin">Admin (acesso total)</option>
+      </select>
+    </div>
+    <button class="btn-p" onclick="salvarUsuario()">SALVAR USUÁRIO</button>
+    <button class="btn-s" onclick="fecharModal('modalUsuario')">Cancelar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// CONFIGURAÇÃO E ESTADO
+// ══════════════════════════════════════════════════════
+const CFG_KEY = 'qbbq_firebase_cfg';
+const LOCAL_KEY = 'qbbq_cozinha_v3';
+const HIST_KEY = 'qbbq_hist_cozinha_v3';
+const USERS_KEY = 'qbbq_users_v3';
+
+let db = null;
+let modoLocal = false;
+let usuarioLogado = null;
+let itens = [];
+let usuarios = [];
+let historico = [];
+let filtroAtivo = 'todos';
+let editandoItemId = null;
+let syncTimeout = null;
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('headerDate').textContent =
+    new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit' });
+
+  const cfg = getFirebaseConfig();
+  if (!cfg) {
+    // Verificar se há usuários locais (modo demo já usado antes)
+    const u = JSON.parse(localStorage.getItem(USERS_KEY) || 'null');
+    if (u) { modoLocal = true; iniciarApp(); return; }
+    esconder('loadingScreen'); // setup não necessário
+    return;
+  }
+  try {
+    inicializarFirebase(cfg);
+    await carregarDadosNuvem();
+    iniciarApp();
+  } catch(e) {
+    console.error(e);
+    toast('⚠️ Erro de conexão — modo local ativado');
+    modoLocal = true;
+    iniciarApp();
+  }
+});
+
+function getFirebaseConfig() {
+  return {
+    apiKey: 'AIzaSyCWL92RevLypFpyaXnutnBEw8cwCeE-W1Y',
+    authDomain: 'quarentena-bbq.firebaseapp.com',
+    projectId: 'quarentena-bbq',
+    appId: '1:319194910743:web:358011ffcf901073214c52'
+  };
+}
+
+function inicializarFirebase(cfg) {
+  if (!firebase.apps.length) firebase.initializeApp(cfg);
+  db = firebase.firestore();
+}
+
+async function carregarDadosNuvem() {
+  // Itens
+  const itensSnap = await db.collection('itens_cozinha').orderBy('ordem').get().catch(() => null);
+  if (itensSnap && !itensSnap.empty) {
+    itens = itensSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } else {
+    itens = getItensDefault();
+    await subirItensNuvem();
+  }
+  // Usuários
+  const usersSnap = await db.collection('usuarios').get().catch(() => null);
+  if (usersSnap && !usersSnap.empty) {
+    usuarios = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } else {
+    usuarios = getUsuariosDefault();
+    await subirUsuariosNuvem();
+  }
+  // Histórico (últimos 30)
+  const histSnap = await db.collection('historico_cozinha').orderBy('ts','desc').limit(30).get().catch(() => null);
+  if (histSnap && !histSnap.empty) {
+    historico = histSnap.docs.map(d => ({ id: d.id, ...d.data() })).reverse();
+  }
+  // Listener tempo real nos itens (contagem)
+  db.collection('itens_cozinha').onSnapshot(snap => {
+    snap.docChanges().forEach(change => {
+      const dado = { id: change.doc.id, ...change.doc.data() };
+      const idx = itens.findIndex(i => i.id === change.doc.id);
+      if (change.type === 'removed') { if (idx >= 0) itens.splice(idx, 1); }
+      else if (idx >= 0) itens[idx] = dado;
+      else itens.push(dado);
+    });
+    itens.sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+    if (document.getElementById('tab-contagem').classList.contains('active')) renderLista();
+    if (document.getElementById('tab-compras').classList.contains('active')) renderCompras();
+  });
+}
+
+async function subirItensNuvem() {
+  const batch = db.batch();
+  itens.forEach(item => {
+    const ref = db.collection('itens_cozinha').doc(item.id);
+    batch.set(ref, item);
+  });
+  await batch.commit();
+}
+
+async function subirUsuariosNuvem() {
+  const batch = db.batch();
+  usuarios.forEach(u => {
+    const ref = db.collection('usuarios').doc(u.id);
+    batch.set(ref, u);
+  });
+  await batch.commit();
+}
+
+function iniciarApp() {
+  if (modoLocal) {
+    const dados = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null');
+    itens = dados?.itens || getItensDefault();
+    usuarios = JSON.parse(localStorage.getItem(USERS_KEY) || 'null') || getUsuariosDefault();
+    historico = JSON.parse(localStorage.getItem(HIST_KEY) || '[]');
+  }
+  esconder('loadingScreen');
+  mostrar('loginScreen');
+  // Hint para primeiro acesso
+  if (usuarios.length === 1 && usuarios[0].nome === 'Admin') {
+    document.getElementById('loginAdminHint').textContent = 'Primeiro acesso: usuário "Admin" senha "admin123"';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// LOGIN / AUTH
+// ══════════════════════════════════════════════════════
+function fazerLogin() {
+  const nome = document.getElementById('loginNome').value.trim();
+  const senha = document.getElementById('loginSenha').value;
+  const err = document.getElementById('loginError');
+  if (!nome || !senha) { err.textContent = 'Preencha nome e senha.'; return; }
+  const user = usuarios.find(u => u.nome.toLowerCase() === nome.toLowerCase() && u.senha === senha);
+  if (!user) { err.textContent = 'Usuário ou senha incorretos.'; return; }
+  usuarioLogado = user;
+  err.textContent = '';
+  esconder('loginScreen');
+  document.getElementById('userTag').textContent = user.nome;
+  if (user.role === 'admin') document.getElementById('usersSection').style.display = 'block';
+  mostrar('app');
+  renderLista();
+  renderCompras();
+}
+
+function fazerLogout() {
+  usuarioLogado = null;
+  document.getElementById('loginNome').value = '';
+  document.getElementById('loginSenha').value = '';
+  esconder('app');
+  mostrar('loginScreen');
+}
+
+// ══════════════════════════════════════════════════════
+// DADOS DEFAULT
+// ══════════════════════════════════════════════════════
+function getItensDefault() {
+  return [
+      {id:'i001',nome:'Abacaxi',cat:'🍔 Matéria Prima',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:1},
+      {id:'i002',nome:'Açúcar Mascavo',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:2},
+      {id:'i003',nome:'Açúcar Cristal',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:3},
+      {id:'i004',nome:'Açúcar Refinado',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:4},
+      {id:'i005',nome:'Acém Bovino',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:5},
+      {id:'i006',nome:'Ajisal',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:6},
+      {id:'i007',nome:'Água Tônica Fys Zero',cat:'🍔 Matéria Prima',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:7},
+      {id:'i008',nome:'Amido De Milho',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:8},
+      {id:'i009',nome:'Melado',cat:'🍔 Matéria Prima',un:'lt',min:0,max:0,atual:null,editor:null,ts:null,ordem:9},
+      {id:'i010',nome:'Arroz Arboreo',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:10},
+      {id:'i011',nome:'Arroz',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:11},
+      {id:'i012',nome:'Azeite',cat:'🍔 Matéria Prima',un:'lt',min:0,max:0,atual:null,editor:null,ts:null,ordem:12},
+      {id:'i013',nome:'Bacon Manta',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:13},
+      {id:'i014',nome:'Bacon Fatiado',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:14},
+      {id:'i015',nome:'Bacon Em Cubos',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:15},
+      {id:'i016',nome:'Barriga De Porco',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:16},
+      {id:'i017',nome:'Batata McCain Sure Crispy',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:17},
+      {id:'i018',nome:'Baby Beef',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:18},
+      {id:'i019',nome:'Cream Cheese',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:19},
+      {id:'i020',nome:'Carne Moída',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:20},
+      {id:'i021',nome:'Catchup Galão',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:21},
+      {id:'i022',nome:'Catchup Sachet',cat:'🍔 Matéria Prima',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:22},
+      {id:'i023',nome:'Chorizo',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:23},
+      {id:'i024',nome:'Chocolate Em Pó 70%',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:24},
+      {id:'i025',nome:'Colorau',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:25},
+      {id:'i026',nome:'Contra Filé',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:26},
+      {id:'i027',nome:'Costela Bovina Janela',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:27},
+      {id:'i028',nome:'Costela Suína',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:28},
+      {id:'i029',nome:'Creme De Leite',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:29},
+      {id:'i030',nome:'Doce De Leite',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:30},
+      {id:'i031',nome:'Farinha De Trigo',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:31},
+      {id:'i032',nome:'Farinha Mandioca',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:32},
+      {id:'i033',nome:'Farinha Panko',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:33},
+      {id:'i034',nome:'Filé De Peito De Frango',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:34},
+      {id:'i035',nome:'Filé Mignon',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:35},
+      {id:'i036',nome:'Filé De Tilápia',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:36},
+      {id:'i037',nome:'Geleia De Pimenta',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:37},
+      {id:'i038',nome:'Fubá',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:38},
+      {id:'i039',nome:'Goiabada',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:39},
+      {id:'i040',nome:'Leite Condensado',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:40},
+      {id:'i041',nome:'Leite',cat:'🍔 Matéria Prima',un:'lt',min:0,max:0,atual:null,editor:null,ts:null,ordem:41},
+      {id:'i042',nome:'Linguiça De Pernil',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:42},
+      {id:'i043',nome:'Maionese',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:43},
+      {id:'i044',nome:'Margarina',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:44},
+      {id:'i045',nome:'Massa De Pastel',cat:'🍔 Matéria Prima',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:45},
+      {id:'i046',nome:'Mini Brioche',cat:'🍔 Matéria Prima',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:46},
+      {id:'i047',nome:'Molho Barbecue',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:47},
+      {id:'i048',nome:'Molho Cheddar Bisnaga',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:48},
+      {id:'i049',nome:'Mostarda Pote',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:49},
+      {id:'i050',nome:'Nutella',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:50},
+      {id:'i051',nome:'Óleo De Soja',cat:'🍔 Matéria Prima',un:'lt',min:0,max:0,atual:null,editor:null,ts:null,ordem:51},
+      {id:'i052',nome:'Ovos',cat:'🍔 Matéria Prima',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:52},
+      {id:'i053',nome:'Pão Hambúrguer Brioche',cat:'🍔 Matéria Prima',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:53},
+      {id:'i054',nome:'Pão Hambúrguer Australiano',cat:'🍔 Matéria Prima',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:54},
+      {id:'i055',nome:'Picanha Nelore',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:55},
+      {id:'i056',nome:'Picanha Suína',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:56},
+      {id:'i057',nome:'Queijo Coalho',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:57},
+      {id:'i058',nome:'Queijo Mussarela',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:58},
+      {id:'i059',nome:'Queijo Prato',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:59},
+      {id:'i060',nome:'Queijo Parmesão',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:60},
+      {id:'i061',nome:'Recheio Creme De Avelã',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:61},
+      {id:'i062',nome:'Requeijão Cremoso Bisnaga',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:62},
+      {id:'i063',nome:'Sal De Parrilla',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:63},
+      {id:'i064',nome:'Sal De Parrilla C/Pimenta',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:64},
+      {id:'i065',nome:'Sorvete Pote',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:65},
+      {id:'i066',nome:'Tapioca',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:66},
+      {id:'i067',nome:'Vinagre',cat:'🍔 Matéria Prima',un:'lt',min:0,max:0,atual:null,editor:null,ts:null,ordem:67},
+      {id:'i068',nome:'Pão Francês',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:68},
+      {id:'i069',nome:'Barra De Chocolate',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:69},
+      {id:'i070',nome:'Nescau',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:70},
+      {id:'i071',nome:'Coco Ralado',cat:'🍔 Matéria Prima',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:71},
+      {id:'i072',nome:'Alface Crespa',cat:'🥬 Hortifruti',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:72},
+      {id:'i073',nome:'Alface Americana',cat:'🥬 Hortifruti',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:73},
+      {id:'i074',nome:'Alho',cat:'🥬 Hortifruti',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:74},
+      {id:'i075',nome:'Alho Poró',cat:'🥬 Hortifruti',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:75},
+      {id:'i076',nome:'Alecrim',cat:'🥬 Hortifruti',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:76},
+      {id:'i077',nome:'Cebola Branca',cat:'🥬 Hortifruti',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:77},
+      {id:'i078',nome:'Cebola Roxa',cat:'🥬 Hortifruti',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:78},
+      {id:'i079',nome:'Cheiro Verde',cat:'🥬 Hortifruti',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:79},
+      {id:'i080',nome:'Couve',cat:'🥬 Hortifruti',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:80},
+      {id:'i081',nome:'Hortelã',cat:'🥬 Hortifruti',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:81},
+      {id:'i082',nome:'Kiwi',cat:'🥬 Hortifruti',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:82},
+      {id:'i083',nome:'Laranja',cat:'🥬 Hortifruti',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:83},
+      {id:'i084',nome:'Limão',cat:'🥬 Hortifruti',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:84},
+      {id:'i085',nome:'Maçã Gala',cat:'🥬 Hortifruti',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:85},
+      {id:'i086',nome:'Manjericão',cat:'🥬 Hortifruti',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:86},
+      {id:'i087',nome:'Maracujá',cat:'🥬 Hortifruti',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:87},
+      {id:'i088',nome:'Morango',cat:'🥬 Hortifruti',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:88},
+      {id:'i089',nome:'Pimenta Dedo De Moça',cat:'🥬 Hortifruti',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:89},
+      {id:'i090',nome:'Tomate',cat:'🥬 Hortifruti',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:90},
+      {id:'i091',nome:'Pepino',cat:'🥬 Hortifruti',un:'kg',min:0,max:0,atual:null,editor:null,ts:null,ordem:91},
+      {id:'i180',nome:'Bolinha De Frango',cat:'👨‍🍳 Produção Própria',un:'porção',min:0,max:0,atual:null,editor:null,ts:null,ordem:180},
+      {id:'i181',nome:'Croquete De Costela',cat:'👨‍🍳 Produção Própria',un:'porção',min:0,max:0,atual:null,editor:null,ts:null,ordem:181},
+      {id:'i182',nome:'Dadinho De Tapioca',cat:'👨‍🍳 Produção Própria',un:'porção',min:0,max:0,atual:null,editor:null,ts:null,ordem:182},
+      {id:'i183',nome:'Barriguinha Suína',cat:'👨‍🍳 Produção Própria',un:'porção',min:0,max:0,atual:null,editor:null,ts:null,ordem:183},
+      {id:'i184',nome:'Filé De Tilápia (prep)',cat:'👨‍🍳 Produção Própria',un:'porção',min:0,max:0,atual:null,editor:null,ts:null,ordem:184},
+      {id:'i185',nome:'Tirinha De Frango',cat:'👨‍🍳 Produção Própria',un:'porção',min:0,max:0,atual:null,editor:null,ts:null,ordem:185},
+      {id:'i186',nome:'Pastel De Cupim C/Catupiry',cat:'👨‍🍳 Produção Própria',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:186},
+      {id:'i187',nome:'Pastel De Queijo',cat:'👨‍🍳 Produção Própria',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:187},
+      {id:'i188',nome:'Pastel De Carne Moída',cat:'👨‍🍳 Produção Própria',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:188},
+      {id:'i189',nome:'Brownie',cat:'👨‍🍳 Produção Própria',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:189},
+      {id:'i190',nome:'Pudim De Leite Moça',cat:'👨‍🍳 Produção Própria',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:190},
+      {id:'i191',nome:'Panqueca',cat:'👨‍🍳 Produção Própria',un:'un',min:0,max:0,atual:null,editor:null,ts:null,ordem:191}
+    ];
+}
+
+function getUsuariosDefault() {
+  return [{ id:'u01', nome:'Admin', senha:'admin123', role:'admin' }];
+}
+
+// ══════════════════════════════════════════════════════
+// STATUS / HELPERS
+// ══════════════════════════════════════════════════════
+function status(item) {
+  if (item.atual === null || item.atual === undefined) return 'pendente';
+  if (item.atual === 0) return 'ruptura';
+  if (item.atual < item.min) return 'baixo';
+  return 'ok';
+}
+function comprar(item) {
+  if (item.atual === null) return 0;
+  return Math.max(0, item.max - item.atual);
+}
+function pct(item) {
+  if (!item.max || item.atual === null) return 0;
+  return Math.min(100, (item.atual / item.max) * 100);
+}
+function pbColor(s) {
+  return { ok:'#00C853', baixo:'#FFB300', ruptura:'#D32F2F', pendente:'#2E2E2E' }[s];
+}
+function badgeCls(s) {
+  return { ok:'badge-ok', baixo:'badge-baixo', ruptura:'badge-ruptura', pendente:'badge-pendente' }[s];
+}
+function badgeTxt(s) {
+  return { ok:'OK', baixo:'BAIXO', ruptura:'RUPTURA', pendente:'PENDENTE' }[s];
+}
+function salvarLocal() {
+  localStorage.setItem(LOCAL_KEY, JSON.stringify({ itens }));
+  localStorage.setItem(USERS_KEY, JSON.stringify(usuarios));
+  localStorage.setItem(HIST_KEY, JSON.stringify(historico));
+}
+
+// ══════════════════════════════════════════════════════
+// SYNC NUVEM (debounced)
+// ══════════════════════════════════════════════════════
+function syncItem(item) {
+  if (modoLocal) { salvarLocal(); return; }
+  document.getElementById('syncBanner').classList.add('show');
+  clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(async () => {
+    try {
+      await db.collection('itens_cozinha').doc(item.id).update({
+        atual: item.atual, editor: item.editor, ts: item.ts
+      });
+      document.getElementById('syncBanner').classList.remove('show');
+    } catch(e) { console.error(e); }
+  }, 600);
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER CONTAGEM
+// ══════════════════════════════════════════════════════
+function renderLista() {
+  const busca = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const cats = {};
+  const filtrados = itens.filter(item => {
+    const s = status(item);
+    if (filtroAtivo !== 'todos' && s !== filtroAtivo) return false;
+    if (busca && !item.nome.toLowerCase().includes(busca)) return false;
+    return true;
+  });
+  filtrados.forEach(item => {
+    if (!cats[item.cat]) cats[item.cat] = [];
+    cats[item.cat].push(item);
+  });
+  let html = '';
+  Object.entries(cats).forEach(([cat, grupo]) => {
+    html += `<div class="cat-label">${cat}</div>`;
+    grupo.forEach(item => {
+      const s = status(item);
+      const p = pct(item);
+      const editorInfo = item.editor ? `<div class="item-editor">Editado por ${item.editor}</div>` : '';
+      html += `
+      <div class="item-card ${s}" id="card-${item.id}">
+        <div class="item-top">
+          <div>
+            <div class="item-nome">${item.nome}</div>
+            ${editorInfo}
+          </div>
+          <span class="badge ${badgeCls(s)}" id="badge-${item.id}">${badgeTxt(s)}</span>
+        </div>
+        <div class="item-stats">
+          <div class="stat-blk"><div class="stat-lbl">Mínimo</div><div class="stat-val val-min">${item.min} ${item.un}</div></div>
+          <div class="stat-blk"><div class="stat-lbl">Máximo</div><div class="stat-val val-max">${item.max} ${item.un}</div></div>
+          <div class="stat-blk"><div class="stat-lbl">Contado</div><div class="stat-val val-atual" id="val-${item.id}">${item.atual !== null ? item.atual + ' ' + item.un : '—'}</div></div>
+        </div>
+        <div class="prog-wrap"><div class="prog" id="prog-${item.id}" style="width:${p}%;background:${pbColor(s)}"></div></div>
+        <div class="count-row">
+          <button class="cbtn cbtn-minus" onclick="ajustar('${item.id}',-1)">−</button>
+          <input class="cinput" type="number" min="0" id="input-${item.id}"
+            value="${item.atual !== null ? item.atual : ''}"
+            placeholder="0"
+            onchange="setValor('${item.id}',this.value)"
+            oninput="setValor('${item.id}',this.value)">
+          <span class="un-lbl">${item.un}</span>
+          <button class="cbtn cbtn-plus" onclick="ajustar('${item.id}',1)">+</button>
+        </div>
+      </div>`;
+    });
+  });
+  if (!html) html = '<div style="text-align:center;color:#444;padding:40px;font-size:13px">Nenhum item encontrado</div>';
+  document.getElementById('listaItens').innerHTML = html;
+  atualizarBadgeHeader();
+}
+
+function atualizarBadgeHeader() {
+  const total = itens.length;
+  const contados = itens.filter(i => i.atual !== null).length;
+  // atualizar titulo da aba
+}
+
+function ajustar(id, delta) {
+  const item = itens.find(i => i.id === id);
+  if (!item) return;
+  const val = (item.atual === null ? 0 : item.atual) + delta;
+  item.atual = Math.max(0, val);
+  item.editor = usuarioLogado?.nome || '';
+  item.ts = new Date().toISOString();
+  atualizarCardUI(item);
+  syncItem(item);
+}
+
+function setValor(id, val) {
+  const item = itens.find(i => i.id === id);
+  if (!item) return;
+  const n = parseFloat(val);
+  item.atual = isNaN(n) || val === '' ? null : Math.max(0, n);
+  item.editor = usuarioLogado?.nome || '';
+  item.ts = new Date().toISOString();
+  atualizarCardUI(item);
+  syncItem(item);
+}
+
+function atualizarCardUI(item) {
+  const s = status(item);
+  const card = document.getElementById('card-' + item.id);
+  const badge = document.getElementById('badge-' + item.id);
+  const valEl = document.getElementById('val-' + item.id);
+  const progEl = document.getElementById('prog-' + item.id);
+  if (!card) return;
+  card.className = 'item-card ' + s;
+  if (badge) { badge.className = 'badge ' + badgeCls(s); badge.textContent = badgeTxt(s); }
+  if (valEl) valEl.textContent = item.atual !== null ? item.atual + ' ' + item.un : '—';
+  if (progEl) { progEl.style.width = pct(item) + '%'; progEl.style.background = pbColor(s); }
+}
+
+function setFiltro(f, btn) {
+  filtroAtivo = f;
+  document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLista();
+}
+
+// ══════════════════════════════════════════════════════
+// FINALIZAR CONTAGEM
+// ══════════════════════════════════════════════════════
+async function finalizarContagem() {
+  const contados = itens.filter(i => i.atual !== null).length;
+  if (contados === 0) { toast('⚠️ Conte ao menos um item!'); return; }
+  const hoje = new Date();
+  const dataISO = hoje.toISOString().split('T')[0];
+  const dataStr = hoje.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' });
+  const snapshot = {};
+  itens.forEach(i => { snapshot[i.id] = i.atual; });
+  const entrada = {
+    data: dataStr, dataISO, snapshot,
+    contados, total: itens.length,
+    usuario: usuarioLogado?.nome || '',
+    ts: hoje.toISOString()
+  };
+  const idx = historico.findIndex(h => h.dataISO === dataISO);
+  if (idx >= 0) historico[idx] = { ...historico[idx], ...entrada };
+  else historico.push(entrada);
+  if (historico.length > 60) historico = historico.slice(-60);
+  if (!modoLocal && db) {
+    try {
+      await db.collection('historico_cozinha').doc(dataISO).set(entrada);
+    } catch(e) { console.error(e); }
+  }
+  salvarLocal();
+  toast('✅ Contagem salva! ' + contados + ' itens registrados.');
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER COMPRAS
+// ══════════════════════════════════════════════════════
+function renderCompras() {
+  const rupturas = itens.filter(i => status(i) === 'ruptura');
+  const baixos = itens.filter(i => status(i) === 'baixo');
+  const oks = itens.filter(i => status(i) === 'ok');
+  document.getElementById('rUrgente').textContent = rupturas.length + baixos.length;
+  document.getElementById('rAtencao').textContent = itens.filter(i => {
+    if (status(i) !== 'ok' || i.atual === null) return false;
+    return (i.atual / i.max) < 0.5;
+  }).length;
+  document.getElementById('rOk').textContent = oks.length;
+  document.getElementById('rContados').textContent = itens.filter(i => i.atual !== null).length;
+  const banner = document.getElementById('bannerRuptura');
+  if (rupturas.length > 0) {
+    banner.style.display = 'flex';
+    document.getElementById('rupturaCount').textContent = `${rupturas.length} ruptura${rupturas.length > 1 ? 's' : ''}`;
+  } else banner.style.display = 'none';
+
+  const paraComprar = itens
+    .filter(i => i.atual !== null && comprar(i) > 0)
+    .sort((a, b) => {
+      const ordem = { ruptura:0, baixo:1, ok:2, pendente:3 };
+      return ordem[status(a)] - ordem[status(b)];
+    });
+  let html = '';
+  if (!paraComprar.length) {
+    html = '<div style="text-align:center;color:#444;padding:30px;font-size:13px">Faça a contagem do dia primeiro 📦</div>';
+  } else {
+    paraComprar.forEach(item => {
+      const s = status(item);
+      const cls = s === 'ruptura' ? 'urg' : s === 'baixo' ? 'atc' : '';
+      const icon = s === 'ruptura' ? '🚨' : s === 'baixo' ? '⚠️' : '📦';
+      html += `
+      <div class="compra-item ${cls}">
+        <span class="ci-icon">${icon}</span>
+        <div class="ci-body">
+          <div class="ci-nome">${item.nome}</div>
+          <div class="ci-det">Estoque: ${item.atual} · Mín: ${item.min} · Máx: ${item.max} ${item.un}</div>
+        </div>
+        <div class="ci-qtd">${comprar(item)}<div class="ci-un">${item.un}</div></div>
+      </div>`;
+    });
+  }
+  document.getElementById('listaCompras').innerHTML = html;
+}
+
+function gerarTextoLista() {
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const paraComprar = itens
+    .filter(i => i.atual !== null && comprar(i) > 0)
+    .sort((a, b) => ({ ruptura:0, baixo:1, ok:2, pendente:3 }[status(a)] - ({ ruptura:0, baixo:1, ok:2, pendente:3 }[status(b)])));
+  if (!paraComprar.length) { toast('Nenhum item para comprar!'); return null; }
+  let txt = `🔥 *QUARENTENA BBQ — Lista de Compras*\n📅 ${hoje}\n\n`;
+  const rup = paraComprar.filter(i => status(i) === 'ruptura');
+  const bai = paraComprar.filter(i => status(i) === 'baixo');
+  const nor = paraComprar.filter(i => status(i) === 'ok');
+  if (rup.length) { txt += `🚨 *URGENTE — RUPTURA*\n`; rup.forEach(i => { txt += `• ${i.nome}: *${comprar(i)} ${i.un}*\n`; }); txt += '\n'; }
+  if (bai.length) { txt += `⚠️ *ATENÇÃO — ESTOQUE BAIXO*\n`; bai.forEach(i => { txt += `• ${i.nome}: ${comprar(i)} ${i.un}\n`; }); txt += '\n'; }
+  if (nor.length) { txt += `📦 *REPOSIÇÃO NORMAL*\n`; nor.forEach(i => { txt += `• ${i.nome}: ${comprar(i)} ${i.un}\n`; }); }
+  return txt;
+}
+
+function enviarWhatsApp() {
+  const txt = gerarTextoLista();
+  if (txt) window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank');
+}
+
+function copiarLista() {
+  const txt = gerarTextoLista();
+  if (!txt) return;
+  navigator.clipboard.writeText(txt).then(() => toast('📋 Lista copiada!')).catch(() => toast('Erro ao copiar'));
+}
+
+// ══════════════════════════════════════════════════════
+// HISTÓRICO / CONSUMO
+// ══════════════════════════════════════════════════════
+function renderHistorico() {
+  const ultimas = historico.slice(-7);
+  const consumoMap = {};
+  for (let i = 1; i < ultimas.length; i++) {
+    const prev = ultimas[i-1], curr = ultimas[i];
+    Object.keys(curr.snapshot).forEach(id => {
+      const a = prev.snapshot[id], b = curr.snapshot[id];
+      if (a !== null && a !== undefined && b !== null && b !== undefined) {
+        if (!consumoMap[id]) consumoMap[id] = [];
+        consumoMap[id].push(Math.max(0, a - b));
+      }
+    });
+  }
+  const sorted = itens.map(item => {
+    const vals = consumoMap[item.id] || [];
+    const media = vals.length ? vals.reduce((a,b) => a+b,0)/vals.length : 0;
+    return { item, media, vals };
+  }).filter(x => x.media > 0).sort((a,b) => b.media - a.media).slice(0, 15);
+
+  let html = '';
+  sorted.forEach(({ item, media, vals }) => {
+    const up = vals.length >= 2 && vals[vals.length-1] > vals[0];
+    const dn = vals.length >= 2 && vals[vals.length-1] < vals[0];
+    html += `
+    <div class="consumo-item">
+      <div>
+        <div class="con-nome">${item.nome}</div>
+        <div class="con-med">Média: ${media.toFixed(1)} ${item.un}/dia</div>
+      </div>
+      <div class="con-val">
+        ${media.toFixed(1)} ${item.un}
+        ${up ? '<div class="trend-up">▲ alta</div>' : dn ? '<div class="trend-dn">▼ baixa</div>' : ''}
+      </div>
+    </div>`;
+  });
+  document.getElementById('listaConsumo').innerHTML = html || '<div style="color:#444;font-size:13px;padding:16px 0">Sem dados suficientes. Finalize a contagem por 2+ dias.</div>';
+
+  let hHtml = '';
+  historico.slice().reverse().slice(0, 7).forEach(h => {
+    const p = h.total > 0 ? Math.round((h.contados / h.total) * 100) : 0;
+    hHtml += `
+    <div class="hist-card">
+      <div class="hist-head">
+        <span class="hist-data">${h.data}</span>
+        <span class="hist-meta">${h.contados}/${h.total} itens</span>
+      </div>
+      <div class="hist-bar-wrap"><div class="hist-bar-fill" style="width:${p}%"></div></div>
+      <div class="hist-by">Por: ${h.usuario || '—'}</div>
+    </div>`;
+  });
+  document.getElementById('listaHist').innerHTML = hHtml || '<div style="color:#444;font-size:13px">Nenhuma contagem registrada ainda.</div>';
+}
+
+// ══════════════════════════════════════════════════════
+// EXPORTAR
+// ══════════════════════════════════════════════════════
+function exportarExcel() {
+  if (!historico.length) { toast('Sem histórico para exportar!'); return; }
+  const wb = XLSX.utils.book_new();
+  // Aba 1: Estoque atual
+  const atualRows = [['Nome', 'Categoria', 'Un', 'Mínimo', 'Máximo', 'Estoque Atual', 'Status', 'Comprar']];
+  itens.forEach(i => {
+    atualRows.push([i.nome, i.cat, i.un, i.min, i.max, i.atual ?? '', status(i).toUpperCase(), comprar(i)]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(atualRows), 'Estoque Atual');
+  // Aba 2: Histórico
+  const histRows = [['Data', 'Por', 'Itens Contados', 'Total Itens']];
+  historico.forEach(h => {
+    histRows.push([h.data, h.usuario || '', h.contados, h.total]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(histRows), 'Histórico');
+  // Aba 3: Consumo
+  const conRows = [['Item', 'Categoria', 'Un', 'Consumo Médio/dia']];
+  const ultimas = historico.slice(-7);
+  const consumoMap = {};
+  for (let i = 1; i < ultimas.length; i++) {
+    const prev = ultimas[i-1], curr = ultimas[i];
+    Object.keys(curr.snapshot).forEach(id => {
+      const a = prev.snapshot[id], b = curr.snapshot[id];
+      if (a !== null && a !== undefined && b !== null && b !== undefined) {
+        if (!consumoMap[id]) consumoMap[id] = [];
+        consumoMap[id].push(Math.max(0, a - b));
+      }
+    });
+  }
+  itens.forEach(item => {
+    const vals = consumoMap[item.id] || [];
+    const media = vals.length ? vals.reduce((a,b) => a+b,0)/vals.length : 0;
+    conRows.push([item.nome, item.cat, item.un, parseFloat(media.toFixed(2))]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(conRows), 'Consumo');
+  const data = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+  XLSX.writeFile(wb, `quarentena_estoque_${data}.xlsx`);
+  toast('📊 Excel exportado!');
+}
+
+function exportarCSV() {
+  if (!itens.length) { toast('Sem dados!'); return; }
+  let csv = 'Nome,Categoria,Unidade,Minimo,Maximo,Atual,Status,Comprar\n';
+  itens.forEach(i => {
+    csv += `"${i.nome}","${i.cat}",${i.un},${i.min},${i.max},${i.atual ?? ''},${status(i)},${comprar(i)}\n`;
+  });
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `quarentena_estoque_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  toast('📄 CSV exportado!');
+}
+
+// ══════════════════════════════════════════════════════
+// CONFIG / CRUD ITENS
+// ══════════════════════════════════════════════════════
+function renderConfig() {
+  const isAdmin = usuarioLogado?.role === 'admin';
+  const cats = {};
+  itens.forEach(i => { if (!cats[i.cat]) cats[i.cat]=[]; cats[i.cat].push(i); });
+  let html = '';
+  Object.entries(cats).forEach(([cat, grupo]) => {
+    html += `<div class="cat-label">${cat}</div>`;
+    grupo.forEach(item => {
+      html += `
+      <div class="config-card">
+        <div class="config-head">
+          <div><div class="config-nome">${item.nome}</div><div class="config-cat">${item.un}</div></div>
+          ${isAdmin ? `<button class="btn-edit-sm" onclick="abrirModalItem('${item.id}')">✏️</button>` : ''}
+        </div>
+        <div class="cfg-fields">
+          <div class="cfg-f"><label>Mínimo</label>
+            <input type="number" value="${item.min}" min="0" ${!isAdmin?'readonly':''} onchange="updateMinMax('${item.id}','min',this.value)"></div>
+          <div class="cfg-f"><label>Máximo</label>
+            <input type="number" value="${item.max}" min="0" ${!isAdmin?'readonly':''} onchange="updateMinMax('${item.id}','max',this.value)"></div>
+          <div class="cfg-f"><label>Hoje</label>
+            <input type="number" value="${item.atual!==null?item.atual:''}" placeholder="—" min="0" onchange="setValor('${item.id}',this.value)"></div>
+        </div>
+      </div>`;
+    });
+  });
+  document.getElementById('listaConfig').innerHTML = html;
+
+  if (isAdmin) {
+    const uls = document.getElementById('listaUsuarios');
+    uls.innerHTML = usuarios.map(u => `
+      <div class="user-card">
+        <div class="user-avatar">${u.nome[0].toUpperCase()}</div>
+        <div class="user-info">
+          <div class="user-nome">${u.nome}</div>
+          <div class="user-role">${u.role === 'admin' ? '👑 Admin' : '👤 Operador'}</div>
+        </div>
+        ${u.id !== usuarioLogado?.id ? `<button class="btn-del-user" onclick="excluirUsuario('${u.id}')">🗑</button>` : '<span style="font-size:11px;color:#555">você</span>'}
+      </div>`).join('');
+  }
+}
+
+function updateMinMax(id, campo, val) {
+  const item = itens.find(i => i.id === id);
+  if (!item) return;
+  const n = parseFloat(val);
+  if (!isNaN(n)) {
+    item[campo] = n;
+    if (!modoLocal && db) db.collection('itens_cozinha').doc(id).update({ [campo]: n }).catch(console.error);
+    salvarLocal();
+  }
+}
+
+let editandoItem = null;
+function abrirModalItem(id) {
+  editandoItem = id || null;
+  const item = id ? itens.find(i => i.id === id) : null;
+  document.getElementById('modalItemTitulo').textContent = item ? 'Editar Insumo' : 'Novo Insumo';
+  document.getElementById('mNome').value = item?.nome || '';
+  document.getElementById('mCat').value = item?.cat || '🍔 Pães & Proteínas';
+  document.getElementById('mUn').value = item?.un || 'un';
+  document.getElementById('mMin').value = item?.min ?? '';
+  document.getElementById('mMax').value = item?.max ?? '';
+  document.getElementById('btnDelItem').style.display = item ? 'block' : 'none';
+  abrirModal('modalItem');
+}
+
+async function salvarItem() {
+  const nome = document.getElementById('mNome').value.trim();
+  const cat = document.getElementById('mCat').value;
+  const un = document.getElementById('mUn').value;
+  const min = parseFloat(document.getElementById('mMin').value);
+  const max = parseFloat(document.getElementById('mMax').value);
+  if (!nome) { toast('⚠️ Digite o nome!'); return; }
+  if (isNaN(min) || isNaN(max) || min > max) { toast('⚠️ Verifique mín/máx!'); return; }
+
+  if (editandoItem) {
+    const item = itens.find(i => i.id === editandoItem);
+    if (item) { Object.assign(item, { nome, cat, un, min, max }); }
+    if (!modoLocal && db) await db.collection('itens_cozinha').doc(editandoItem).update({ nome, cat, un, min, max }).catch(console.error);
+  } else {
+    const novoId = 'i' + Date.now();
+    const novo = { id:novoId, nome, cat, un, min, max, atual:null, editor:null, ts:null, ordem:itens.length+1 };
+    itens.push(novo);
+    if (!modoLocal && db) await db.collection('itens_cozinha').doc(novoId).set(novo).catch(console.error);
+  }
+  salvarLocal();
+  fecharModal('modalItem');
+  renderLista(); renderConfig(); renderCompras();
+  toast(editandoItem ? '✅ Insumo atualizado!' : '✅ Insumo adicionado!');
+}
+
+async function excluirItem() {
+  if (!editandoItem) return;
+  if (!confirm('Excluir este insumo?')) return;
+  itens = itens.filter(i => i.id !== editandoItem);
+  if (!modoLocal && db) await db.collection('itens_cozinha').doc(editandoItem).delete().catch(console.error);
+  salvarLocal();
+  fecharModal('modalItem');
+  renderLista(); renderConfig(); renderCompras();
+  toast('🗑 Insumo excluído');
+}
+
+// ══════════════════════════════════════════════════════
+// USUÁRIOS
+// ══════════════════════════════════════════════════════
+function abrirModalUsuario() {
+  document.getElementById('uNome').value = '';
+  document.getElementById('uSenha').value = '';
+  document.getElementById('uRole').value = 'operador';
+  document.getElementById('modalUserTitulo').textContent = 'Novo Usuário';
+  abrirModal('modalUsuario');
+}
+
+async function salvarUsuario() {
+  const nome = document.getElementById('uNome').value.trim();
+  const senha = document.getElementById('uSenha').value;
+  const role = document.getElementById('uRole').value;
+  if (!nome) { toast('⚠️ Digite o nome!'); return; }
+  if (senha.length < 4) { toast('⚠️ Senha mínimo 4 caracteres!'); return; }
+  if (usuarios.find(u => u.nome.toLowerCase() === nome.toLowerCase())) { toast('⚠️ Usuário já existe!'); return; }
+  const id = 'u' + Date.now();
+  const novo = { id, nome, senha, role };
+  usuarios.push(novo);
+  if (!modoLocal && db) await db.collection('usuarios').doc(id).set(novo).catch(console.error);
+  salvarLocal();
+  fecharModal('modalUsuario');
+  renderConfig();
+  toast(`✅ Usuário ${nome} criado!`);
+}
+
+async function excluirUsuario(id) {
+  if (!confirm('Remover este usuário?')) return;
+  usuarios = usuarios.filter(u => u.id !== id);
+  if (!modoLocal && db) await db.collection('usuarios').doc(id).delete().catch(console.error);
+  salvarLocal();
+  renderConfig();
+  toast('🗑 Usuário removido');
+}
+
+// ══════════════════════════════════════════════════════
+// SETUP FIREBASE
+// ══════════════════════════════════════════════════════
+async function salvarConfig() {
+  const cfg = {
+    apiKey: document.getElementById('cfgApiKey').value.trim(),
+    authDomain: document.getElementById('cfgAuthDomain').value.trim(),
+    projectId: document.getElementById('cfgProjectId').value.trim(),
+    appId: document.getElementById('cfgAppId').value.trim(),
+  };
+  if (!cfg.apiKey || !cfg.projectId) {
+    document.getElementById('setupError').textContent = 'Preencha ao menos API Key e Project ID.';
+    return;
+  }
+  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+  document.getElementById('setupError').textContent = '';
+  try {
+    inicializarFirebase(cfg);
+    await carregarDadosNuvem();
+    esconder('setupScreen');
+    iniciarApp();
+  } catch(e) {
+    document.getElementById('setupError').textContent = 'Erro ao conectar: ' + e.message;
+  }
+}
+
+function usarModoLocal() {
+  modoLocal = true;
+  esconder('setupScreen');
+  iniciarApp();
+}
+
+// ══════════════════════════════════════════════════════
+// TABS / UI
+// ══════════════════════════════════════════════════════
+function showTab(id, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  el.classList.add('active');
+  if (id === 'compras') renderCompras();
+  if (id === 'historico') renderHistorico();
+  if (id === 'config') renderConfig();
+}
+
+function abrirModal(id) { document.getElementById(id).classList.add('open'); }
+function fecharModal(id, e) {
+  if (!e || e.target === document.getElementById(id))
+    document.getElementById(id).classList.remove('open');
+}
+
+function mostrar(id) { document.getElementById(id).style.display = 'flex'; }
+function esconder(id) { document.getElementById(id).style.display = 'none'; }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 2800);
+}
+</script>
+</body>
+</html>
